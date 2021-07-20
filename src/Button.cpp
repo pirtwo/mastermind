@@ -2,9 +2,10 @@
 
 Button::Button(sf::Texture &t)
 {
+    text = sf::Text();
     _press = false;
     _release = false;
-    _sp = sf::Sprite(t);
+    sp = sf::Sprite(t);
 }
 
 Button::~Button()
@@ -14,7 +15,7 @@ Button::~Button()
 
 sf::FloatRect Button::getBounds()
 {
-    return getTransform().transformRect(_sp.getLocalBounds());
+    return getTransform().transformRect(sp.getLocalBounds());
 }
 
 bool Button::hasClick()
@@ -45,5 +46,6 @@ void Button::update(sf::RenderWindow &target)
 
 void Button::draw(sf::RenderTarget &target, sf::RenderStates states) const
 {
-    target.draw(_sp, states.transform * getTransform());
+    target.draw(sp, states.transform * getTransform());
+    target.draw(text, states.transform * getTransform() * text.getTransform());
 }

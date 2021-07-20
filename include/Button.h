@@ -6,8 +6,11 @@
 class Button : public sf::Drawable, public sf::Transformable
 {
 protected:
-    sf::Sprite _sp;
     bool _press, _release;
+
+public:
+    sf::Sprite sp;
+    sf::Text text;
 
 public:
     Button(sf::Texture &t);
