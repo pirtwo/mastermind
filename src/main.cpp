@@ -40,29 +40,29 @@ int main()
         return EXIT_FAILURE;
     }
 
+    //========= initialize ===========//
+    srand(time(NULL));
+
+    sf::Sprite pegSprite(pegTexture);
+    pegSprite.setScale(0.2, 0.2);
+    sf::Sprite slotSprite(slotTexture);
+    slotSprite.setScale(0.2, 0.2);
+
     Peg
         empty{sf::Color(0, 0, 0, 255)},
         red{sf::Color::Red},
         blue{sf::Color::Blue},
         green{sf::Color::Green},
-        brown{sf::Color(0, 0, 0, 255)},
+        brown{sf::Color(150, 125, 70, 255)},
         black{sf::Color::Black},
         white{sf::Color::White},
         yellow{sf::Color::Yellow},
-        orange{sf::Color(0, 0, 0, 255)},
-        flagBlack{sf::Color(0, 0, 0, 255)},
-        flagWhite{sf::Color(0, 0, 0, 255)};
-
-    std::array<Peg, 8> pegs = {
-        red, blue, green, brown, black, white, yellow, orange};
-
-    sf::Sprite peg(pegTexture);
-    peg.setScale(0.2, 0.2);
-    sf::Sprite slot(slotTexture);
-    slot.setScale(0.2, 0.2);
+        orange{sf::Color(255, 175, 0, 255)},
+        blackFlag{sf::Color(1, 1, 1, 255)},
+        whiteFlag{sf::Color(255, 255, 255, 255)};
+    std::array<Peg, COLOR_NUM> pegs = {red, blue, green, brown, black, white, yellow, orange};
 
     std::vector<Button> pegBtns;
-
     Button clearBtn(slotTexture);
     clearBtn.text.setFont(font);
     clearBtn.text.setString("CLEAR");
@@ -72,7 +72,6 @@ int main()
     clearBtn.text.setPosition(10, 10);
     clearBtn.setScale(0.2, 0.2);
     clearBtn.setPosition(200, 200);
-
     Button checkBtn(slotTexture);
     checkBtn.text.setFont(font);
     checkBtn.text.setString("CHECK");
@@ -81,64 +80,54 @@ int main()
     checkBtn.text.setScale(2, 2);
     checkBtn.text.setPosition(10, 10);
     checkBtn.setScale(0.2, 0.2);
-    checkBtn.setPosition(200, 200);
-
-    for (int i = 0; i < pegs.size(); i++)
+    checkBtn.setPosition(300, 200);
+    for (size_t i = 0; i < pegs.size(); i++)
     {
         Button btn(pegTexture);
         btn.sp.setColor(pegs[i].color);
         btn.setScale(0.2, 0.2);
-        btn.setPosition(i * btn.getBounds().width, 20);
+        btn.setPosition(i * btn.getBounds().width + 10, 20);
         pegBtns.push_back(btn);
     }
 
-    srand(time(NULL));
-
-    std::array<sf::Color, CODE_LEN> code = {empty};
-    std::array<std::array<sf::Color, CODE_LEN * 2>, GUESS_NUM> board = {empty};
-    int currRowIdx = 0;
+    int indexX = 0, indexY = 0;
+    std::array<Peg, CODE_LEN> code;
+    std::array<std::array<Peg, CODE_LEN * 2>, GUESS_NUM> board;
 
     auto genCode = [&]()
     {
-        for (int i = 0; i < code.size(); i++)
+        for (size_t i = 0; i < code.size(); i++)
             code[i] = pegs[randInt(0, pegs.size())];
     };
 
     auto genFeedback = [&]()
     {
-        int blackFlag = 0;
-        int whiteFlag = 0;
-        auto currRow = board[currRowIdx];
+        std::vector<Peg> visited;
+        int blackFlagNum = 0;
+        int whiteFlagNum = 0;
 
-        /* check current guess */
+        /* check current guess against code */
         for (int i = 0; i < CODE_LEN; i++)
         {
-            int guess = currRow[i];
+            if (board[indexY][i].color == code[i].color)
+                blackFlagNum++;
 
-            if (guess == code[i])
-            {
-                blackFlag++;
-            }
-            else if (std::any_of(code.begin(), code.end(), [&](int n)
-                                 { return guess == n; }))
-            {
-                whiteFlag++;
-            }
+            // TODO: count white flags
         }
 
         /* fill feedback */
         int index = CODE_LEN;
-        while (blackFlag > 0 || whiteFlag > 0)
+        while (blackFlagNum > 0 || whiteFlagNum > 0)
         {
-            if (blackFlag > 0)
+            if (blackFlagNum > 0)
             {
-                currRow[index] = Feedback::FLAG_BLACK;
-                blackFlag--;
+                board[indexY][index] = blackFlag;
+                blackFlagNum--;
             }
             else
             {
-                currRow[index] = Feedback::FLAG_WHITE;
-                whiteFlag--;
+                board[indexY][index] = whiteFlag;
+                whiteFlagNum--;
             }
             index++;
         }
@@ -148,7 +137,7 @@ int main()
     {
         for (int i = 0; i < CODE_LEN; i++)
         {
-            if (code[i] != board[currRowIdx][i])
+            if (code[i].color != board[indexY][i].color)
                 return false;
         }
         return true;
@@ -156,15 +145,19 @@ int main()
 
     auto checkLose = [&]() -> bool
     {
-        return currRowIdx >= GUESS_NUM;
+        return indexY >= GUESS_NUM;
     };
 
     auto newGame = [&]()
     {
-        code = {0};
-        board = {0};
-        currRowIdx = 0;
+        code = {empty};
+        board = {empty};
+        indexX = 0;
+        indexY = 0;
+        genCode();
     };
+
+    newGame();
 
     while (window.isOpen())
     {
@@ -184,79 +177,85 @@ int main()
         //========= update =========//
         checkBtn.update(window);
         if (checkBtn.hasClick())
+        {
             std::cout << "check\r\n";
+
+            if (indexX == CODE_LEN)
+            {
+                genFeedback();
+
+                if (checkWin())
+                {
+                    std::cout << "Win!!!\r\n";
+                }
+                else if (checkLose())
+                {
+                    std::cout << "Lose!!!\r\n";
+                }
+
+                indexX = 0;
+                indexY++;
+            }
+        }
 
         clearBtn.update(window);
         if (clearBtn.hasClick())
             std::cout << "clear\r\n";
 
-        for (auto &&btn : pegBtns)
+        for (int i = 0; i < COLOR_NUM; i++)
         {
-            btn.update(window);
-            if (btn.hasClick())
+            pegBtns[i].update(window);
+            if (pegBtns[i].hasClick())
             {
-                //
+                std::cout << "click " << i << "\r\n";
+
+                if (indexX >= 0 && indexX < CODE_LEN)
+                {
+                    board[indexY][indexX] = pegs[i];
+                    indexX++;
+                }
             }
         }
 
         //========= draw ==========//
-        window.clear();
+        window.clear(sf::Color::White);
 
+        /* draw slots */
         for (int i = 0; i < GUESS_NUM; i++)
             for (int j = 0; j < CODE_LEN; j++)
             {
-                slot.setPosition(
-                    BOARD_X + j * (slot.getGlobalBounds().width + SLOT_PADDING_X),
-                    BOARD_Y + i * (slot.getGlobalBounds().height + SLOT_PADDING_X));
-                window.draw(slot);
+                slotSprite.setPosition(
+                    BOARD_X + j * (slotSprite.getGlobalBounds().width + SLOT_PADDING_X),
+                    BOARD_Y + i * (slotSprite.getGlobalBounds().height + SLOT_PADDING_X));
+                window.draw(slotSprite);
             }
 
+        /* draw pegs */
         for (int i = 0; i < GUESS_NUM; i++)
-            for (int j = 0; j < CODE_LEN; j++)
+            for (int j = 0; j < CODE_LEN * 2; j++)
             {
-                int guess = board[i][j];
-
-                switch (guess)
-                {
-                case 0:
-                    peg.setColor(sf::Color::Red);
-                    break;
-                case Peg::BLUE:
-                    peg.setColor(sf::Color::Blue);
-                    break;
-                case Peg::GREEN:
-                    peg.setColor(sf::Color::Green);
-                    break;
-                case Peg::BROWN:
-                    peg.setColor(sf::Color(0, 0, 0, 255));
-                    break;
-                case Peg::BLACK:
-                    peg.setColor(sf::Color::Black);
-                    break;
-                case Peg::WHITE:
-                    peg.setColor(sf::Color::White);
-                    break;
-                case Peg::YELLOW:
-                    peg.setColor(sf::Color::Yellow);
-                    break;
-                case Peg::ORANGE:
-                    peg.setColor(sf::Color(0, 0, 0, 255));
-                    break;
-                default:
-                    break;
-                }
-
-                peg.setPosition(
-                    BOARD_X + j * (slot.getGlobalBounds().width + SLOT_PADDING_X) + PEG_PADDING_X,
-                    BOARD_Y + i * (slot.getGlobalBounds().height + SLOT_PADDING_Y) + PEG_PADDING_Y);
-                window.draw(peg);
+                auto peg = board[i][j];
+                if (peg.color == empty.color)
+                    continue;
+                pegSprite.setColor(peg.color);
+                pegSprite.setPosition(
+                    BOARD_X + j * (slotSprite.getGlobalBounds().width + SLOT_PADDING_X) + PEG_PADDING_X,
+                    BOARD_Y + i * (slotSprite.getGlobalBounds().height + SLOT_PADDING_Y) + PEG_PADDING_Y);
+                window.draw(pegSprite);
             }
 
-        for (auto &&i : pegBtns)
+        /* draw result */
+        for (int i = 0; i < CODE_LEN; i++)
         {
-            window.draw(i);
+            auto peg = code[i];
+            pegSprite.setColor(peg.color);
+            pegSprite.setPosition(i * pegSprite.getGlobalBounds().width, 600);
+            window.draw(pegSprite);
         }
 
+        /* draw buttons */
+        for (auto &&i : pegBtns)
+            window.draw(i);
         window.draw(checkBtn);
         window.draw(clearBtn);
 
