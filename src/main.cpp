@@ -220,7 +220,15 @@ int main()
 
         clearBtn.update(window);
         if (clearBtn.hasClick())
+        {
             std::cout << "clear\r\n";
+
+            if (indexX > 0)
+            {
+                indexX--;
+                board[indexY][indexX] = empty;
+            }
+        }
 
         for (int i = 0; i < COLOR_NUM; i++)
         {
