@@ -1,5 +1,4 @@
 #include <SFML/Graphics.hpp>
-#include <iostream>
 #include <stdlib.h>
 #include <algorithm>
 #include "Button.h"
@@ -8,6 +7,14 @@ struct Peg
 {
     sf::Color color;
 };
+
+struct State
+{
+    int score = 0;
+    bool hasWin = false;
+    bool hasLose = false;
+    bool gameover = false;
+} state;
 
 int randInt(int min, int max)
 {
@@ -18,10 +25,10 @@ int main()
 {
     const int CODE_LEN = 4;
     const int COLOR_NUM = 8;
-    const int GUESS_NUM = 10;
+    const int GUESS_NUM = 8;
     const float BOARD_X = 40;
-    const float BOARD_Y = 100;
-    const float SLOT_PADDING_X = 5;
+    const float BOARD_Y = 200;
+    const float SLOT_PADDING_X = 2;
     const float SLOT_PADDING_Y = 5;
     const float PEG_PADDING_X = 12;
     const float PEG_PADDING_Y = 12;
@@ -47,12 +54,11 @@ int main()
     //========= initialize ===========//
     srand(time(NULL));
 
-    sf::Sprite pinSprite(pinTexture);
-    //pinSprite.setScale(0.2, 0.2);
     sf::Sprite pegSprite(pegTexture);
-    pegSprite.setScale(0.2, 0.2);
+    sf::Sprite pinSprite(pinTexture);
+    //pinSprite.setScale(0.8, 0.8);
     sf::Sprite slotSprite(slotTexture);
-    slotSprite.setScale(0.2, 0.2);
+    slotSprite.setScale(0.19, 0.19);
 
     Peg
         empty{sf::Color(0, 0, 0, 255)},
@@ -60,35 +66,71 @@ int main()
         blue{sf::Color::Blue},
         green{sf::Color::Green},
         brown{sf::Color(150, 125, 70, 255)},
-        black{sf::Color(1, 1, 1, 255)},
+        purple{sf::Color(160, 60, 120, 255)},
         white{sf::Color::White},
         yellow{sf::Color::Yellow},
         orange{sf::Color(255, 175, 0, 255)},
         blackFlag{sf::Color::Red},
         whiteFlag{sf::Color(125, 125, 125, 255)};
-    std::array<Peg, COLOR_NUM> pegs = {red, blue, green, brown, black, white, yellow, orange};
+    std::array<Peg, COLOR_NUM> pegs = {red, blue, green, brown, purple, white, yellow, orange};
+
+    sf::Text seperator;
+    seperator.setFont(font);
+    seperator.setCharacterSize(40);
+    seperator.setFillColor(sf::Color::Yellow);
+    seperator.setString("-----------------------------------------------------");
+    sf::Text btnHeader;
+    btnHeader.setFont(font);
+    btnHeader.setCharacterSize(20);
+    btnHeader.setFillColor(sf::Color::Yellow);
+    btnHeader.setPosition(10, 10);
+    btnHeader.setString("      SELECT PINS");
+    sf::Text boardHeader;
+    boardHeader.setFont(font);
+    boardHeader.setCharacterSize(20);
+    boardHeader.setFillColor(sf::Color::Yellow);
+    boardHeader.setPosition(10, 140);
+    boardHeader.setString("      GUESS                                       FEEDBACK");
+    sf::Text boardFooter;
+    boardFooter.setFont(font);
+    boardFooter.setCharacterSize(20);
+    boardFooter.setFillColor(sf::Color::Yellow);
+    boardFooter.setPosition(10, 660);
+    boardFooter.setString("      RESULT");
+    sf::Text resultText;
+    resultText.setFont(font);
+    resultText.setCharacterSize(20);
+    resultText.setFillColor(sf::Color::Yellow);
+    resultText.setPosition(40, 710);
+    resultText.setString("");
 
     std::vector<Button> pegBtns;
     Button clearBtn(buttonTexture);
     clearBtn.text.setFont(font);
     clearBtn.text.setString("DEL");
-    clearBtn.text.setCharacterSize(17);
+    clearBtn.text.setCharacterSize(15);
     clearBtn.text.setFillColor(sf::Color::Red);
     clearBtn.text.setPosition(5, 5);
-    clearBtn.setPosition(340, 20);
+    clearBtn.setPosition(310, 50);
     Button checkBtn(buttonTexture);
     checkBtn.text.setFont(font);
     checkBtn.text.setString("SET");
-    checkBtn.text.setCharacterSize(17);
+    checkBtn.text.setCharacterSize(15);
     checkBtn.text.setFillColor(sf::Color::Red);
     checkBtn.text.setPosition(5, 5);
-    checkBtn.setPosition(400, 20);
+    checkBtn.setPosition(360, 50);
+    Button newBtn(buttonTexture);
+    newBtn.text.setFont(font);
+    newBtn.text.setString("NEW");
+    newBtn.text.setCharacterSize(15);
+    newBtn.text.setFillColor(sf::Color::Red);
+    newBtn.text.setPosition(5, 5);
+    newBtn.setPosition(410, 50);
     for (size_t i = 0; i < pegs.size(); i++)
     {
         Button btn(pegTexture);
         btn.sp.setColor(pegs[i].color);
-        btn.setScale(0.2, 0.2);
-        btn.setPosition(i * (btn.getBounds().width + 5) + 50, 30);
+        btn.setPosition(i * (btn.getBounds().width + 5) + 30, 60);
         pegBtns.push_back(btn);
     }
 
@@ -165,7 +207,7 @@ int main()
 
     auto checkLose = [&]() -> bool
     {
-        return indexY >= GUESS_NUM;
+        return indexY + 1 >= GUESS_NUM;
     };
 
     auto newGame = [&]()
@@ -174,6 +216,10 @@ int main()
         board = {empty};
         indexX = 0;
         indexY = 0;
+        state.hasWin = false;
+        state.hasLose = false;
+        state.gameover = false;
+        resultText.setString("");
         genCode();
     };
 
@@ -195,22 +241,29 @@ int main()
         }
 
         //========= update =========//
-        checkBtn.update(window);
-        if (checkBtn.hasClick())
+        newBtn.update(window);
+        if (newBtn.hasClick())
         {
-            std::cout << "check\r\n";
+            newGame();
+        }
 
+        checkBtn.update(window);
+        if (checkBtn.hasClick() && !state.gameover)
+        {
             if (indexX == CODE_LEN)
             {
                 genFeedback();
 
-                if (checkWin())
+                state.hasWin = checkWin();
+                state.hasLose = checkLose();
+
+                if (state.hasWin || state.hasLose)
                 {
-                    std::cout << "Win!!!\r\n";
-                }
-                else if (checkLose())
-                {
-                    std::cout << "Lose!!!\r\n";
+                    resultText.setString(
+                        state.hasWin
+                            ? "YOU BROKE THE CODE:"
+                            : "THE CODE WAS:");
+                    state.gameover = true;
                 }
 
                 indexX = 0;
@@ -219,10 +272,8 @@ int main()
         }
 
         clearBtn.update(window);
-        if (clearBtn.hasClick())
+        if (clearBtn.hasClick() && !state.gameover)
         {
-            std::cout << "clear\r\n";
-
             if (indexX > 0)
             {
                 indexX--;
@@ -233,10 +284,8 @@ int main()
         for (int i = 0; i < COLOR_NUM; i++)
         {
             pegBtns[i].update(window);
-            if (pegBtns[i].hasClick())
+            if (pegBtns[i].hasClick() && !state.gameover)
             {
-                std::cout << "click " << i << "\r\n";
-
                 if (indexX >= 0 && indexX < CODE_LEN)
                 {
                     board[indexY][indexX] = pegs[i];
@@ -246,7 +295,18 @@ int main()
         }
 
         //========= draw ==========//
-        window.clear(sf::Color::White);
+        window.clear(sf::Color(142, 38, 87, 255));
+
+        window.draw(btnHeader);
+        seperator.setPosition(-10, 10);
+        window.draw(seperator);
+        window.draw(boardHeader);
+        seperator.setPosition(-10, 140);
+        window.draw(seperator);
+        window.draw(boardFooter);
+        seperator.setPosition(-10, 660);
+        window.draw(seperator);
+        window.draw(resultText);
 
         /* draw slots */
         for (int i = 0; i < GUESS_NUM; i++)
@@ -255,25 +315,11 @@ int main()
                 slotSprite.setColor(
                     indexX == j && indexY == i
                         ? sf::Color::Yellow
-                        : sf::Color::White);
+                        : sf::Color(255, 63, 0, 255));
                 slotSprite.setPosition(
                     BOARD_X + j * (slotSprite.getGlobalBounds().width + SLOT_PADDING_X),
-                    BOARD_Y + i * (slotSprite.getGlobalBounds().height + SLOT_PADDING_X));
+                    BOARD_Y + i * (slotSprite.getGlobalBounds().height + SLOT_PADDING_Y));
                 window.draw(slotSprite);
-            }
-
-        /* draw pegs */
-        for (int i = 0; i < GUESS_NUM; i++)
-            for (int j = 0; j < CODE_LEN; j++)
-            {
-                auto peg = board[i][j];
-                if (peg.color == empty.color)
-                    continue;
-                pegSprite.setColor(peg.color);
-                pegSprite.setPosition(
-                    BOARD_X + j * (slotSprite.getGlobalBounds().width + SLOT_PADDING_X) + PEG_PADDING_X,
-                    BOARD_Y + i * (slotSprite.getGlobalBounds().height + SLOT_PADDING_Y) + PEG_PADDING_Y);
-                window.draw(pegSprite);
             }
 
         /* draw pins */
@@ -291,20 +337,36 @@ int main()
                 window.draw(pinSprite);
             }
 
-        /* draw result */
-        for (int i = 0; i < CODE_LEN; i++)
-        {
-            auto peg = code[i];
-            pegSprite.setColor(peg.color);
-            pegSprite.setPosition(i * pegSprite.getGlobalBounds().width, 600);
-            window.draw(pegSprite);
-        }
+        /* draw pegs */
+        for (int i = 0; i < GUESS_NUM; i++)
+            for (int j = 0; j < CODE_LEN; j++)
+            {
+                auto peg = board[i][j];
+                if (peg.color == empty.color)
+                    continue;
+                pegSprite.setColor(peg.color);
+                pegSprite.setPosition(
+                    BOARD_X + j * (slotSprite.getGlobalBounds().width + SLOT_PADDING_X) + PEG_PADDING_X,
+                    BOARD_Y + i * (slotSprite.getGlobalBounds().height + SLOT_PADDING_Y) + PEG_PADDING_Y);
+                window.draw(pegSprite);
+            }
+
+        /* draw code */
+        if (state.gameover)
+            for (int i = 0; i < CODE_LEN; i++)
+            {
+                auto peg = code[i];
+                pegSprite.setColor(peg.color);
+                pegSprite.setPosition(i * (pegSprite.getGlobalBounds().width + 5) + 350, 710);
+                window.draw(pegSprite);
+            }
 
         /* draw buttons */
         for (auto &&i : pegBtns)
             window.draw(i);
         window.draw(checkBtn);
         window.draw(clearBtn);
+        window.draw(newBtn);
 
         window.display();
     }
