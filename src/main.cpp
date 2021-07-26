@@ -81,7 +81,7 @@ int main()
     sf::Text seperator;
     seperator.setFont(font);
     seperator.setCharacterSize(40);
-    seperator.setFillColor(sf::Color::Yellow);
+    seperator.setFillColor(sf::Color(123, 19, 67, 255));
     seperator.setString("-----------------------------------------------------");
     sf::Text btnHeader;
     btnHeader.setFont(font);
