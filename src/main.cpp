@@ -1,6 +1,5 @@
 #include <SFML/Graphics.hpp>
 #include <stdlib.h>
-#include <algorithm>
 #include "Button.h"
 
 struct Peg
@@ -56,7 +55,6 @@ int main()
 
     sf::Sprite pegSprite(pegTexture);
     sf::Sprite pinSprite(pinTexture);
-    //pinSprite.setScale(0.8, 0.8);
     sf::Sprite slotSprite(slotTexture);
     slotSprite.setScale(0.19, 0.19);
 
