@@ -72,6 +72,12 @@ int main()
         whiteFlag{sf::Color(125, 125, 125, 255)};
     std::array<Peg, COLOR_NUM> pegs = {red, blue, green, brown, purple, white, yellow, orange};
 
+    char playerScore[50];
+    sf::Text scoreText;
+    scoreText.setFont(font);
+    scoreText.setCharacterSize(17);
+    scoreText.setFillColor(sf::Color::Yellow);
+    scoreText.setPosition(350, 10);
     sf::Text seperator;
     seperator.setFont(font);
     seperator.setCharacterSize(40);
@@ -255,6 +261,9 @@ int main()
                 state.hasWin = checkWin();
                 state.hasLose = checkLose();
 
+                if (state.hasWin)
+                    state.score += GUESS_NUM * 10 - indexY * 10;
+
                 if (state.hasWin || state.hasLose)
                 {
                     resultText.setString(
@@ -292,10 +301,14 @@ int main()
             }
         }
 
+        snprintf(playerScore, 50, "SCORE: %i", state.score);
+        scoreText.setString(playerScore);
+
         //========= draw ==========//
         window.clear(sf::Color(142, 38, 87, 255));
 
         window.draw(btnHeader);
+        window.draw(scoreText);
         seperator.setPosition(-10, 10);
         window.draw(seperator);
         window.draw(boardHeader);
